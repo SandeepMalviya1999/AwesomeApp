@@ -1,0 +1,33 @@
+name: awesome_app
+description: Awesome app, task project for Novo Cabs
+
+publish_to: 'none'
+
+version: 1.0.0
+
+environment:
+  sdk: ">=2.13.4 <3.0.0"
+
+dependencies:
+  #state management
+  get: ^4.3.8
+  #open link
+  url_launcher: ^6.0.9
+  #api calling
+  http: ^0.13.3
+  dio: ^4.0.0
+  #dummy image
+  transparent_image: ^2.0.0
+  #offline data store
+  shared_preferences: ^2.0.7
+  #cache image
+  cached_network_image: ^3.1.0
+  #to show msg
+  fluttertoast: ^8.0.8
+
+  flutter:
+    sdk: flutter
+
+
+flutter:
+  uses-material-design: true
