@@ -22,8 +22,10 @@ dependencies:
   shared_preferences: ^2.0.7
   #cache image
   cached_network_image: ^3.1.0
-  #to show msg
-  fluttertoast: ^8.0.8
+  #interner connection check
+  connectivity: ^3.0.6
+  #toast msg
+  bot_toast: ^4.0.1
 
   flutter:
     sdk: flutter

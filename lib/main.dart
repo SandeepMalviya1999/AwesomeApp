@@ -1,15 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:bot_toast/bot_toast.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'model/unsplash_model.dart';
+import 'toast_utils.dart';
 
 void main() {
   runApp(HomeScreen());
@@ -21,6 +22,8 @@ class HomeScreen extends StatelessWidget {
     return GetMaterialApp(
         title: 'Awesome App',
         theme: ThemeData(primarySwatch: Colors.blue),
+        navigatorObservers: [BotToastNavigatorObserver()],
+        builder: BotToastInit(),
         home: MyHomePage(title: 'Awesome App'));
   }
 }
@@ -40,16 +43,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
   bool _isFetching = true;
 
-
   fetchProducts() async {
     try {
-      setState(() {
-        _isFetching = true;
-      });
-
       final SharedPreferences prefs = await _prefs;
 
-      items.clear();
+      setState(() {
+        _isFetching = true;
+        items.clear();
+      });
 
       if (prefs.getString('data') != null) {
         List<dynamic> list = json.decode(prefs.getString('data').toString());
@@ -60,39 +61,51 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       }
 
-      Dio dio = new Dio();
-      dio.options.headers["Authorization"] =
-      "Client-ID N_sLL516R-J1Lb91_rkJshfo2wJjznxO5SjtdCwV9Q8";
+      //check for internet connection
+      final result = await InternetAddress.lookup('google.com');
 
-      var response =
-      await dio.get('https://api.unsplash.com/photos/random?count=30');
+      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+        Dio dio = new Dio();
+        dio.options.headers["Authorization"] =
+            "Client-ID N_sLL516R-J1Lb91_rkJshfo2wJjznxO5SjtdCwV9Q8";
 
-      if (response.statusCode == 200) {
-        List<dynamic> list = response.data;
-        items.clear();
-        for (int i = 0; i < list.length; i++) {
-          setState(() {
-            items.add(UnSplashModel.fromJson(list[i]));
+        var response =
+            await dio.get('https://api.unsplash.com/photos/random?count=30');
+
+        if (response.statusCode == 200) {
+          List<dynamic> list = response.data;
+          items.clear();
+          for (int i = 0; i < list.length; i++) {
+            setState(() {
+              items.add(UnSplashModel.fromJson(list[i]));
+            });
+          }
+          await prefs
+              .setString('data', json.encode(response.data))
+              .then((value) {
+            setState(() {
+              _isFetching = false;
+            });
           });
-        }
-        await prefs
-            .setString('data', json.encode(response.data))
-            .then((value) {
+        } else {
           setState(() {
             _isFetching = false;
           });
-        });
+          ToastUtils.showFailed(message: 'Response : ${response.statusCode}');
+        }
       } else {
-        setState(() {
-          _isFetching = false;
-        });
-        showMessage('Response : ${response.statusCode}');
+        ToastUtils.showFailed(message: 'No internet connection');
       }
+    } on SocketException catch (e) {
+      setState(() {
+        _isFetching = false;
+      });
+      ToastUtils.showFailed(message: 'No internet connection');
     } on DioError catch (e) {
       setState(() {
         _isFetching = false;
       });
-      showMessage(e.message);
+      ToastUtils.showFailed(message: e.message);
     }
   }
 
@@ -117,12 +130,14 @@ class _MyHomePageState extends State<MyHomePage> {
             child: _isFetching
                 ? Center(child: CircularProgressIndicator())
                 : items.isNotEmpty
-                ? ListView.builder(
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  return ProductBox(item: items[index]);
-                })
-                : Center(child: Text('No Data Found'),)));
+                    ? ListView.builder(
+                        itemCount: items.length,
+                        itemBuilder: (context, index) {
+                          return ProductBox(item: items[index]);
+                        })
+                    : Center(
+                        child: Text('No Data Found'),
+                      )));
   }
 }
 
@@ -143,8 +158,7 @@ class ProductBox extends StatelessWidget {
                   child: CachedNetworkImage(
                       imageUrl: item.urls!.thumb,
                       progressIndicatorBuilder:
-                          (context, url, downloadProgress) =>
-                          Padding(
+                          (context, url, downloadProgress) => Padding(
                               padding: const EdgeInsets.all(32),
                               child: CircularProgressIndicator(
                                   value: downloadProgress.progress)),
@@ -157,28 +171,15 @@ class ProductBox extends StatelessWidget {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(item.description),
-                        SizedBox(height: 10),
-                        Text(
-                            'Author: ${item.user!.firstName} ${item.user!
-                                .firstName}')
-                      ]))
+                    Text(item.description),
+                    SizedBox(height: 10),
+                    Text(
+                        'Author: ${item.user!.firstName} ${item.user!.firstName}')
+                  ]))
             ])));
   }
 
-  void _openImageInBrowser(_url) async =>
-      await canLaunch(_url)
-          ? await launch(_url)
-          : showMessage('Could not launch $_url');
-}
-
-showMessage(String msg) {
-  Fluttertoast.showToast(
-      msg: msg,
-      toastLength: Toast.LENGTH_SHORT,
-      gravity: ToastGravity.SNACKBAR,
-      timeInSecForIosWeb: 1,
-      backgroundColor: Colors.red,
-      textColor: Colors.white,
-      fontSize: 16.0);
+  void _openImageInBrowser(_url) async => await canLaunch(_url)
+      ? await launch(_url)
+      : ToastUtils.showFailed(message: 'Could not launch $_url');
 }
