@@ -1,5 +1,5 @@
 name: awesome_app
-description: Awesome app, task project for Novo Cabs
+description: Awesome app, task project
 
 publish_to: 'none'
 
@@ -29,7 +29,6 @@ dependencies:
 
   flutter:
     sdk: flutter
-
 
 flutter:
   uses-material-design: true
